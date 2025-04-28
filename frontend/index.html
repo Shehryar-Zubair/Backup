@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Certificate Blockchain System</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.6.2/dist/ethers.umd.min.js"></script>
+</head>
+<body>
+
+<h1>Blockchain Certificate System</h1>
+
+<h2>Institute: Issue Certificate</h2>
+<form id="issueForm">
+    Certificate ID: <input type="text" id="certId" required><br>
+    Student Name: <input type="text" id="studentName" required><br>
+    Course: <input type="text" id="course" required><br>
+    <button type="submit">Issue Certificate</button>
+</form>
+
+<hr>
+
+<h2>Student: Verify Certificate</h2>
+<form id="verifyForm">
+    Certificate ID: <input type="text" id="verifyCertId" required><br>
+    <button type="submit">Verify Certificate</button>
+</form>
+
+<div id="verifyResult"></div>
+
+<script>
+  const contractAddress = "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707"; // <-- YOUR contract address
+  const contractABI = [
+    {
+      "inputs": [
+        { "internalType": "string", "name": "certificateId", "type": "string" },
+        { "internalType": "string", "name": "studentName", "type": "string" },
+        { "internalType": "string", "name": "course", "type": "string" }
+      ],
+      "name": "issueCertificate",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        { "internalType": "string", "name": "certificateId", "type": "string" }
+      ],
+      "name": "verifyCertificate",
+      "outputs": [
+        { "internalType": "string", "name": "studentName", "type": "string" },
+        { "internalType": "string", "name": "course", "type": "string" }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ];
+
+  let signer;
+  let certificateContract;
+
+  async function connectWallet() {
+    if (typeof window.ethereum !== "undefined") {
+      const provider = new ethers.BrowserProvider(window.ethereum); // ethers v6 syntax
+      try {
+        await provider.send("eth_requestAccounts", []);
+        signer = await provider.getSigner();
+        certificateContract = new ethers.Contract(contractAddress, contractABI, signer);
+        const address = await signer.getAddress();
+        console.log("✅ Connected to MetaMask address:", address);
+      } catch (error) {
+        console.error("❌ MetaMask connection failed:", error);
+        alert("❌ Please allow MetaMask connection!");
+      }
+    } else {
+      alert("❌ MetaMask is not installed.");
+    }
+  }
+
+  async function issueCertificate(event) {
+    event.preventDefault();
+    await connectWallet();
+
+    const certId = document.getElementById("certId").value;
+    const studentName = document.getElementById("studentName").value;
+    const course = document.getElementById("course").value;
+
+    try {
+      const tx = await certificateContract.issueCertificate(certId, studentName, course);
+      await tx.wait();
+      document.getElementById("verifyResult").innerHTML = `<p style="color:green;">✅ Certificate issued successfully! (ID: ${certId})</p>`;
+
+      // Clear form fields after successful issuance
+      document.getElementById("issueForm").reset();
+    } catch (error) {
+      console.error("❌ Error issuing certificate:", error);
+      document.getElementById("verifyResult").innerHTML = `<p style="color:red;">❌ Error issuing certificate!</p>`;
+    }
+  }
+
+  async function verifyCertificate(event) {
+  event.preventDefault();
+  await connectWallet();
+
+  const certId = document.getElementById("verifyCertId").value;
+
+  try {
+    const [studentName, course] = await certificateContract.verifyCertificate(certId);
+
+    if (studentName && studentName !== "") {
+      document.getElementById("verifyResult").innerHTML = `<p style="color:green;">✅ Certificate Found!<br>Student: ${studentName}<br>Course: ${course}</p>`;
+    } else {
+      document.getElementById("verifyResult").innerHTML = `<p style="color:red;">❌ Certificate not found!</p>`;
+    }
+  } catch (error) {
+    console.error("❌ Error verifying certificate:", error);
+    document.getElementById("verifyResult").innerHTML = `<p style="color:red;">❌ Error verifying certificate!</p>`;
+  }
+}
+
+
+  document.getElementById("issueForm").addEventListener("submit", issueCertificate);
+  document.getElementById("verifyForm").addEventListener("submit", verifyCertificate);
+</script>
+
+
+</body>
+</html>
